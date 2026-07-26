@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.nuxt/
+.output/
+*.env
+*.env.example
+!.env.example
+backend/uploads/*
+!backend/uploads/.gitkeep
