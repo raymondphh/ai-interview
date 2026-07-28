@@ -77,7 +77,7 @@ const menuItems = [
   {
     key: "/upload-cv",
     icon: () => h(FileTextOutlined),
-    label: "Upload CV",
+    label: "Upload CV & JD",
   },
   {
     key: "/question-bank",
@@ -99,7 +99,7 @@ watch(
 
 const pageTitle = computed(() => {
   if (route.path.startsWith("/dashboard")) return "Dashboard";
-  if (route.path.startsWith("/upload-cv")) return "Upload CV";
+  if (route.path.startsWith("/upload-cv")) return "Upload CV & JD";
   if (route.path.startsWith("/interview")) return "Phỏng vấn thử";
   if (route.path.startsWith("/history")) return "Lịch sử";
   if (route.path.startsWith("/question-bank")) return "Ngân hàng câu hỏi";

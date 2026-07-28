@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { prisma } from "../config/db";
 import { AuthRequest } from "../middleware/auth";
-import { extractTextFromCV } from "../services/cvParser.service";
+import { extractTextFromDocument } from "../services/documentParser.service";
 import { analyzeCV } from "../services/ai.service";
 
 /** Upload CV, trích xuất text và lưu vào DB */
@@ -9,7 +9,7 @@ export async function uploadCV(req: AuthRequest, res: Response) {
   if (!req.file)
     return res.status(400).json({ message: "Vui lòng chọn file CV" });
 
-  const rawText = await extractTextFromCV(req.file.path);
+  const rawText = await extractTextFromDocument(req.file.path);
 
   const cv = await prisma.cV.create({
     data: {

@@ -68,12 +68,95 @@ ${rawText.slice(0, 14000)}
   return JSON.parse(content) as CVAnalysisResult;
 }
 
-/** Sinh câu hỏi phỏng vấn bám sát đúng ngành nghề, vị trí, kỹ năng và dự án cụ thể của ứng viên */
+export interface JDAnalysisResult {
+  companyName: string;
+  companyOverview: string;
+  industry: string;
+  companyProducts: string[];
+  keyProductsRelatedToJD: string[];
+  jobTitle: string;
+  jobSummary: string;
+  requiredSkills: string[];
+  preferredSkills: string[];
+  responsibilities: string[];
+  requirements: string[];
+  benefits: string[];
+  seniorityLevel: string;
+  workLocation: string;
+}
+
+/** Phân tích JD: giới thiệu công ty, sản phẩm/ngành nghề, yêu cầu tuyển dụng */
+export async function analyzeJD(rawText: string): Promise<JDAnalysisResult> {
+  const prompt = `Bạn là chuyên gia tuyển dụng và nghiên cứu thị trường lao động. Hãy đọc kỹ Job Description (JD) dưới đây và phân tích CHI TIẾT.
+
+Nhiệm vụ:
+1. Xác định tên công ty và viết phần GIỚI THIỆU CÔNG TY (2-4 câu) dựa trên thông tin trong JD và kiến thức công khai hợp lý về công ty đó (nếu JD không nêu rõ, suy luận từ tên công ty/ngữ cảnh JD).
+2. Xác định NGÀNH NGHỀ/LĨNH VỰC kinh doanh chính của công ty.
+3. Liệt kê các SẢN PHẨM/DỊCH VỤ chính của công ty (dựa trên JD và thông tin công khai hợp lý).
+4. Liệt kê các SẢN PHẨM/DỊCH VỤ KEY liên quan trực tiếp đến vị trí tuyển dụng trong JD (ứng viên sẽ làm việc với sản phẩm nào).
+5. Phân tích chi tiết yêu cầu tuyển dụng: vị trí, mô tả công việc, trách nhiệm, kỹ năng bắt buộc/ưu tiên, cấp bậc, địa điểm làm việc, quyền lợi.
+
+Trả về DUY NHẤT một JSON object (không markdown, không giải thích ngoài JSON):
+{
+  "companyName": string,
+  "companyOverview": string (giới thiệu công ty 2-4 câu),
+  "industry": string (ngành nghề/lĩnh vực kinh doanh),
+  "companyProducts": string[] (các sản phẩm/dịch vụ chính của công ty),
+  "keyProductsRelatedToJD": string[] (sản phẩm/dự án key liên quan trực tiếp đến vị trí trong JD),
+  "jobTitle": string,
+  "jobSummary": string (tóm tắt vị trí 2-3 câu),
+  "requiredSkills": string[],
+  "preferredSkills": string[],
+  "responsibilities": string[],
+  "requirements": string[],
+  "benefits": string[],
+  "seniorityLevel": string (Intern | Fresher | Junior | Middle | Senior | Lead/Manager),
+  "workLocation": string
+}
+
+JD cần phân tích:
+"""
+${rawText.slice(0, 14000)}
+"""`;
+
+  const completion = await groq.chat.completions.create({
+    model: MODEL,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+  });
+
+  const content = completion.choices[0]?.message?.content || "{}";
+  return JSON.parse(content) as JDAnalysisResult;
+}
+
+/** Sinh câu hỏi phỏng vấn bám sát CV và JD (nếu có) */
 export async function generateQuestions(
   analysis: CVAnalysisResult,
   count = 5,
+  jdAnalysis?: JDAnalysisResult | null,
 ): Promise<string[]> {
-  const prompt = `Bạn là một Hiring Manager có chuyên môn sâu trong lĩnh vực "${analysis.industry}", đang phỏng vấn ứng viên cho vị trí "${analysis.suggestedRole}" (cấp bậc: ${analysis.seniorityLevel}).
+  const jdContext = jdAnalysis
+    ? `
+Thông tin công ty và JD ứng tuyển:
+- Công ty: ${jdAnalysis.companyName}
+- Giới thiệu: ${jdAnalysis.companyOverview}
+- Ngành nghề công ty: ${jdAnalysis.industry}
+- Sản phẩm/dịch vụ: ${jdAnalysis.companyProducts?.join(", ") || "không rõ"}
+- Sản phẩm key liên quan JD: ${jdAnalysis.keyProductsRelatedToJD?.join(", ") || "không rõ"}
+- Vị trí tuyển dụng: ${jdAnalysis.jobTitle}
+- Mô tả vị trí: ${jdAnalysis.jobSummary}
+- Kỹ năng bắt buộc: ${jdAnalysis.requiredSkills?.join(", ") || "không rõ"}
+- Kỹ năng ưu tiên: ${jdAnalysis.preferredSkills?.join(", ") || "không rõ"}
+- Trách nhiệm: ${jdAnalysis.responsibilities?.join("; ") || "không rõ"}
+- Cấp bậc yêu cầu: ${jdAnalysis.seniorityLevel}
+`
+    : "";
+
+  const targetRole = jdAnalysis?.jobTitle || analysis.suggestedRole;
+  const targetIndustry = jdAnalysis?.industry || analysis.industry;
+
+  const prompt = `Bạn là một Hiring Manager có chuyên môn sâu trong lĩnh vực "${targetIndustry}", đang phỏng vấn ứng viên cho vị trí "${targetRole}" (cấp bậc ứng viên: ${analysis.seniorityLevel}${jdAnalysis ? `, cấp bậc JD yêu cầu: ${jdAnalysis.seniorityLevel}` : ""}).
 
 Thông tin ứng viên:
 - Kỹ năng chuyên môn: ${analysis.technicalSkills?.join(", ") || "không rõ"}
@@ -82,14 +165,15 @@ Thông tin ứng viên:
 - Điểm mạnh: ${analysis.strengths?.join(", ") || "không rõ"}
 - Điểm cần cải thiện: ${analysis.weaknesses?.join(", ") || "không rõ"}
 - Số năm kinh nghiệm: ${analysis.yearsOfExperience}
+${jdContext}
 
-Hãy tạo ra ĐÚNG ${count} câu hỏi phỏng vấn CHẤT LƯỢNG CAO, bám sát chặt chẽ vào đúng ngành nghề, kỹ năng và kinh nghiệm thực tế của ứng viên này (KHÔNG hỏi chung chung, KHÔNG hỏi câu hỏi có thể áp dụng cho bất kỳ ngành nào). Phân bổ như sau:
-- 40% câu hỏi kỹ thuật chuyên sâu, dựa trực tiếp vào công nghệ/kỹ năng cụ thể ứng viên đã liệt kê.
-- 30% câu hỏi khai thác sâu về các dự án/thành tích nổi bật đã nêu (hỏi về quyết định kỹ thuật, khó khăn đã giải quyết, kết quả đạt được).
-- 20% câu hỏi tình huống thực tế (behavioral/case study) phù hợp với cấp bậc ${analysis.seniorityLevel} và lĩnh vực ${analysis.industry}.
-- 10% câu hỏi khai thác điểm cần cải thiện đã xác định, theo hướng xây dựng.
+Hãy tạo ra ĐÚNG ${count} câu hỏi phỏng vấn CHẤT LƯỢNG CAO, bám sát chặt chẽ vào CV của ứng viên${jdAnalysis ? " VÀ yêu cầu JD/công ty tuyển dụng" : ""} (KHÔNG hỏi chung chung). Phân bổ như sau:
+- 30% câu hỏi kỹ thuật chuyên sâu, dựa trực tiếp vào công nghệ/kỹ năng trong CV${jdAnalysis ? " và kỹ năng bắt buộc trong JD" : ""}.
+- 25% câu hỏi khai thác sâu về các dự án/thành tích nổi bật trong CV.
+${jdAnalysis ? "- 20% câu hỏi về sản phẩm/dự án của công ty và cách ứng viên phù hợp với vị trí (nhắc đến sản phẩm key liên quan JD).\n" : ""}- 20% câu hỏi tình huống thực tế (behavioral/case study) phù hợp với cấp bậc và lĩnh vực.
+- 10% câu hỏi khai thác điểm cần cải thiện hoặc khoảng trống giữa CV và JD.
 
-Mỗi câu hỏi phải cụ thể, có thể nhắc trực tiếp đến công nghệ/dự án/lĩnh vực đã nêu ở trên (không viết câu hỏi rời rạc, mơ hồ).
+Mỗi câu hỏi phải cụ thể, có thể nhắc trực tiếp đến công nghệ/dự án/lĩnh vực/sản phẩm công ty đã nêu ở trên.
 
 Trả về DUY NHẤT một JSON object dạng {"questions": string[]}, không thêm markdown, không thêm giải thích.`;
 

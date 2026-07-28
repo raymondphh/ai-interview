@@ -7,8 +7,8 @@ export const interviewService = {
   get(id: string) {
     return createApiClient().get(`/interviews/${id}`);
   },
-  create(cvId: string, questionCount = 10) {
-    return createApiClient().post("/interviews", { cvId, questionCount });
+  create(cvId: string, questionCount = 10, jdId?: string) {
+    return createApiClient().post("/interviews", { cvId, jdId, questionCount });
   },
   complete(id: string) {
     return createApiClient().post(`/interviews/${id}/complete`);

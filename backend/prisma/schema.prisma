@@ -15,8 +15,9 @@ model User {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  cvs        CV[]
-  interviews Interview[]
+  cvs               CV[]
+  jobDescriptions   JobDescription[]
+  interviews        Interview[]
 }
 
 model CV {
@@ -32,12 +33,29 @@ model CV {
   interviews Interview[]
 }
 
+model JobDescription {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  sourceType  String   // file | url
+  fileName    String?
+  filePath    String?
+  sourceUrl   String?
+  rawText     String?
+  analysis    Json?    // AI: company intro, products, JD requirements...
+  createdAt   DateTime @default(now())
+
+  interviews Interview[]
+}
+
 model Interview {
   id          String   @id @default(uuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   cvId        String
   cv          CV       @relation(fields: [cvId], references: [id])
+  jdId        String?
+  jd          JobDescription? @relation(fields: [jdId], references: [id])
   status      String   @default("in_progress") // in_progress | completed
   createdAt   DateTime @default(now())
   completedAt DateTime?

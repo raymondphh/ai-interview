@@ -5,10 +5,11 @@ import { generateQuestions, scoreAnswer } from "../services/ai.service";
 import { transcribeAudio } from "../services/speech.service";
 import { getIO } from "../socket";
 
-/** Tạo 1 buổi phỏng vấn mới từ 1 CV: AI sinh câu hỏi dựa trên phân tích CV */
+/** Tạo 1 buổi phỏng vấn mới từ CV (+ JD nếu có): AI sinh câu hỏi dựa trên phân tích */
 export async function createInterview(req: AuthRequest, res: Response) {
-  const { cvId, questionCount } = req.body as {
+  const { cvId, jdId, questionCount } = req.body as {
     cvId: string;
+    jdId?: string;
     questionCount?: number;
   };
 
@@ -19,15 +20,28 @@ export async function createInterview(req: AuthRequest, res: Response) {
   if (!cv.analysis)
     return res.status(400).json({ message: "CV chưa được AI phân tích" });
 
+  let jdAnalysis = null;
+  if (jdId) {
+    const jd = await prisma.jobDescription.findFirst({
+      where: { id: jdId, userId: req.user!.userId },
+    });
+    if (!jd) return res.status(404).json({ message: "Không tìm thấy JD" });
+    if (!jd.analysis)
+      return res.status(400).json({ message: "JD chưa được AI phân tích" });
+    jdAnalysis = jd.analysis as any;
+  }
+
   const questions = await generateQuestions(
     cv.analysis as any,
     questionCount || 5,
+    jdAnalysis,
   );
 
   const interview = await prisma.interview.create({
     data: {
       userId: req.user!.userId,
       cvId: cv.id,
+      jdId: jdId || null,
       questions: {
         create: questions.map((q, idx) => ({ content: q, order: idx + 1 })),
       },

@@ -14,19 +14,27 @@ function makeStorage(subfolder: string) {
   });
 }
 
+const documentFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const ok = [".pdf", ".doc", ".docx"].includes(
+    path.extname(file.originalname).toLowerCase(),
+  );
+  if (!ok) {
+    cb(new Error("Only PDF/DOC/DOCX files are allowed"));
+    return;
+  }
+  cb(null, true);
+};
+
 export const uploadCV = multer({
   storage: makeStorage("cv"),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (_req, file, cb) => {
-    const ok = [".pdf", ".doc", ".docx"].includes(
-      path.extname(file.originalname).toLowerCase(),
-    );
-    if (!ok) {
-      cb(new Error("Only PDF/DOC/DOCX files are allowed"));
-      return;
-    }
-    cb(null, true);
-  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: documentFilter,
+});
+
+export const uploadJD = multer({
+  storage: makeStorage("jd"),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: documentFilter,
 });
 
 export const uploadAudio = multer({

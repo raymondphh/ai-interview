@@ -6,6 +6,7 @@ import path from "path";
 
 import authRoutes from "./routes/auth.routes";
 import cvRoutes from "./routes/cv.routes";
+import jdRoutes from "./routes/jd.routes";
 import interviewRoutes from "./routes/interview.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import historyRoutes from "./routes/history.routes";
@@ -24,6 +25,7 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/cv", cvRoutes);
+app.use("/api/jd", jdRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/history", historyRoutes);

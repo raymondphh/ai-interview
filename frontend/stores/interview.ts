@@ -23,8 +23,8 @@ export const useInterviewStore = defineStore("interview", {
     questionStatus: {} as Record<string, string | null>,
   }),
   actions: {
-    async create(cvId: string, questionCount = 10) {
-      const { data } = await interviewService.create(cvId, questionCount);
+    async create(cvId: string, questionCount = 10, jdId?: string) {
+      const { data } = await interviewService.create(cvId, questionCount, jdId);
       this.current = data;
       return data as Interview;
     },
