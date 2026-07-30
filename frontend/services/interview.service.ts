@@ -13,6 +13,12 @@ export const interviewService = {
   complete(id: string) {
     return createApiClient().post(`/interviews/${id}/complete`);
   },
+  /** Tạo buổi phỏng vấn mới (round tiếp theo) với câu hỏi khác lần trước, dựa trên cùng CV/JD */
+  continueInterview(id: string, questionCount?: number) {
+    return createApiClient().post(`/interviews/${id}/continue`, {
+      questionCount,
+    });
+  },
   submitAnswerText(questionId: string, answerText: string) {
     return createApiClient().post(
       `/interviews/questions/${questionId}/answer`,

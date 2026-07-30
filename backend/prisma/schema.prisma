@@ -48,20 +48,6 @@ model JobDescription {
   interviews Interview[]
 }
 
-model Interview {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  cvId        String
-  cv          CV       @relation(fields: [cvId], references: [id])
-  jdId        String?
-  jd          JobDescription? @relation(fields: [jdId], references: [id])
-  status      String   @default("in_progress") // in_progress | completed
-  createdAt   DateTime @default(now())
-  completedAt DateTime?
-
-  questions Question[]
-}
 
 model Question {
   id           String   @id @default(uuid())
@@ -84,4 +70,26 @@ model QuestionBankItem {
   createdAt DateTime @default(now())
 
   @@index([industry, level])
+}
+
+model Interview {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  cvId        String
+  cv          CV       @relation(fields: [cvId], references: [id])
+  jdId        String?
+  jd          JobDescription? @relation(fields: [jdId], references: [id])
+  status      String   @default("in_progress") // in_progress | completed
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  // Cho phép "phỏng vấn tiếp" sau khi đã hoàn tất 1 lần: mỗi lần tiếp tục tạo 1 Interview mới,
+  // trỏ về lần trước đó để biết những câu hỏi nào đã hỏi rồi (tránh lặp lại).
+  round               Int         @default(1)
+  previousInterviewId String?
+  previousInterview   Interview?  @relation("InterviewChain", fields: [previousInterviewId], references: [id])
+  nextInterviews      Interview[] @relation("InterviewChain")
+
+  questions Question[]
 }

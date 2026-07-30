@@ -13,6 +13,7 @@ export interface Question {
 export interface Interview {
   id: string;
   status: string;
+  round: number;
   questions: Question[];
 }
 
@@ -67,6 +68,15 @@ export const useInterviewStore = defineStore("interview", {
       const { data } = await interviewService.complete(id);
       this.current = data;
       return data;
+    },
+    /** Bắt đầu phỏng vấn tiếp (round mới) với câu hỏi khác lần trước, dùng lại CV/JD cũ */
+    async continueInterview(id: string, questionCount?: number) {
+      const { data } = await interviewService.continueInterview(
+        id,
+        questionCount,
+      );
+      this.current = data;
+      return data as Interview;
     },
     /** Xóa buổi phỏng vấn đang xem khỏi state hiện tại (không xóa trong DB) */
     reset() {

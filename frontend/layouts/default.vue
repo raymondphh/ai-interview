@@ -24,21 +24,15 @@
         class="header-bar">
         <div class="header-inner">
           <div class="header-title">{{ pageTitle }}</div>
-          <a-dropdown v-if="auth.user">
-            <a class="user-trigger" @click.prevent>
-              <a-avatar style="background-color: #1677ff">
-                {{ auth.user.name?.charAt(0).toUpperCase() }}
-              </a-avatar>
-              <span class="user-name">{{ auth.user.name }}</span>
-            </a>
-            <template #overlay>
-              <a-menu @click="handleUserMenu">
-                <a-menu-item key="logout">
-                  <LogoutOutlined /> Đăng xuất
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
+          <div v-if="auth.user" class="user-area">
+            <a-avatar style="background-color: #1677ff">
+              {{ auth.user.name?.charAt(0).toUpperCase() }}
+            </a-avatar>
+            <span class="user-name">{{ auth.user.name }}</span>
+            <a-button danger @click="handleUserMenu({ key: 'logout' })">
+              <LogoutOutlined /> Đăng xuất
+            </a-button>
+          </div>
         </div>
       </a-layout-header>
 
@@ -150,5 +144,12 @@ function handleUserMenu({ key }: { key: string }) {
 }
 .user-name {
   font-weight: 500;
+}
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(0, 0, 0, 0.85);
 }
 </style>

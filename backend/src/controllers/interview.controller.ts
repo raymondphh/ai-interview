@@ -155,3 +155,82 @@ export async function completeInterview(req: AuthRequest, res: Response) {
   });
   return res.json(updated);
 }
+
+/** Đệ quy ngược theo previousInterviewId để lấy hết câu hỏi đã hỏi ở TẤT CẢ các vòng trước đó */
+async function getAllPreviousQuestions(
+  interviewId: string,
+  userId: string,
+): Promise<string[]> {
+  const all: string[] = [];
+  let currentId: string | null = interviewId;
+
+  while (currentId) {
+    const interview: {
+      previousInterviewId: string | null;
+      questions: { content: string }[];
+    } | null = await prisma.interview.findFirst({
+      where: { id: currentId, userId },
+      select: {
+        previousInterviewId: true,
+        questions: { select: { content: true } },
+      },
+    });
+    if (!interview) break;
+    all.push(...interview.questions.map((q) => q.content));
+    currentId = interview.previousInterviewId;
+  }
+
+  return all;
+}
+
+/**
+ * Phỏng vấn tiếp sau khi đã hoàn tất 1 lần: tạo 1 buổi phỏng vấn MỚI (round + 1),
+ * dùng lại cùng CV/JD, nhưng AI được yêu cầu tránh hỏi lại các câu đã hỏi ở (các) vòng trước.
+ */
+export async function continueInterview(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const { questionCount } = req.body as { questionCount?: number };
+
+  const prevInterview = await prisma.interview.findFirst({
+    where: { id, userId: req.user!.userId },
+    include: { questions: true, cv: true, jd: true },
+  });
+  if (!prevInterview) {
+    return res.status(404).json({ message: "Không tìm thấy buổi phỏng vấn" });
+  }
+  if (prevInterview.status !== "completed") {
+    return res.status(400).json({
+      message:
+        "Chỉ có thể phỏng vấn tiếp sau khi đã hoàn tất buổi phỏng vấn hiện tại",
+    });
+  }
+  if (!prevInterview.cv.analysis) {
+    return res.status(400).json({ message: "CV chưa được AI phân tích" });
+  }
+
+  const askedQuestions = await getAllPreviousQuestions(id, req.user!.userId);
+  const jdAnalysis = (prevInterview.jd?.analysis as any) || null;
+
+  const questions = await generateQuestions(
+    prevInterview.cv.analysis as any,
+    questionCount || prevInterview.questions.length || 5,
+    jdAnalysis,
+    askedQuestions,
+  );
+
+  const newInterview = await prisma.interview.create({
+    data: {
+      userId: req.user!.userId,
+      cvId: prevInterview.cvId,
+      jdId: prevInterview.jdId,
+      round: prevInterview.round + 1,
+      previousInterviewId: prevInterview.id,
+      questions: {
+        create: questions.map((q, idx) => ({ content: q, order: idx + 1 })),
+      },
+    },
+    include: { questions: true },
+  });
+
+  return res.status(201).json(newInterview);
+}

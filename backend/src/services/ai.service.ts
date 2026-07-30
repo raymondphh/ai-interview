@@ -131,10 +131,13 @@ ${rawText.slice(0, 14000)}
 }
 
 /** Sinh câu hỏi phỏng vấn bám sát CV và JD (nếu có) */
+/** Sinh câu hỏi phỏng vấn bám sát CV và JD (nếu có).
+ * excludeQuestions: các câu đã hỏi ở (các) lần phỏng vấn trước -> AI sẽ tránh hỏi lại. */
 export async function generateQuestions(
   analysis: CVAnalysisResult,
   count = 5,
   jdAnalysis?: JDAnalysisResult | null,
+  excludeQuestions?: string[],
 ): Promise<string[]> {
   const jdContext = jdAnalysis
     ? `
@@ -156,6 +159,14 @@ Thông tin công ty và JD ứng tuyển:
   const targetRole = jdAnalysis?.jobTitle || analysis.suggestedRole;
   const targetIndustry = jdAnalysis?.industry || analysis.industry;
 
+  // Danh sách câu đã hỏi ở các vòng trước -> chèn vào prompt để AI tránh lặp lại
+  const excludeContext =
+    excludeQuestions && excludeQuestions.length > 0
+      ? `Các câu hỏi ĐÃ HỎI ở (các) lần phỏng vấn trước của ứng viên này, TUYỆT ĐỐI KHÔNG hỏi lại và KHÔNG hỏi dạng diễn đạt lại/tương đương các câu dưới đây (phải ra câu hỏi mới, khai thác khía cạnh/kỹ năng/dự án KHÁC):\n${excludeQuestions
+          .map((q, i) => `${i + 1}. ${q}`)
+          .join("\n")}\n`
+      : "";
+
   const prompt = `Bạn là một Hiring Manager có chuyên môn sâu trong lĩnh vực "${targetIndustry}", đang phỏng vấn ứng viên cho vị trí "${targetRole}" (cấp bậc ứng viên: ${analysis.seniorityLevel}${jdAnalysis ? `, cấp bậc JD yêu cầu: ${jdAnalysis.seniorityLevel}` : ""}).
 
 Thông tin ứng viên:
@@ -166,7 +177,7 @@ Thông tin ứng viên:
 - Điểm cần cải thiện: ${analysis.weaknesses?.join(", ") || "không rõ"}
 - Số năm kinh nghiệm: ${analysis.yearsOfExperience}
 ${jdContext}
-
+${excludeContext}
 Hãy tạo ra ĐÚNG ${count} câu hỏi phỏng vấn CHẤT LƯỢNG CAO, bám sát chặt chẽ vào CV của ứng viên${jdAnalysis ? " VÀ yêu cầu JD/công ty tuyển dụng" : ""} (KHÔNG hỏi chung chung). Phân bổ như sau:
 - 30% câu hỏi kỹ thuật chuyên sâu, dựa trực tiếp vào công nghệ/kỹ năng trong CV${jdAnalysis ? " và kỹ năng bắt buộc trong JD" : ""}.
 - 25% câu hỏi khai thác sâu về các dự án/thành tích nổi bật trong CV.
